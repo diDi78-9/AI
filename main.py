@@ -17,13 +17,13 @@ Revision History
 1.2 - Bugs fixed and player improved, should no longer forfeit
 """
 
-# TODO - Change the PORT and USER_NAME Values before running
+
 DEBUG = True
 PORT = 11212
 USER_NAME = "dwill"
-# TODO - change your method of saving information from the very rudimentary method here
-hand = [] # list of cards in our hand
-discard = [] # list of cards organized as a stack
+
+hand = []  # list of cards in our hand
+discard = []  # list of cards organized as a stack
 cannot_discard = ""
 
 # Utility function to count occurrences of each card rank in the hand
@@ -110,7 +110,7 @@ async def start_game(game_info: GameInfo):
     global discard
     hand = game_info.hand.split(" ")
     hand.sort()
-    logging.info("2p game started, hand is "+str(hand))
+    logging.debug("2p game started, hand is "+str(hand))
     return {"status": "OK"}
 
 # data class used to receive data from API POST
@@ -126,7 +126,7 @@ async def start_hand(hand_info: HandInfo):
     discard = []
     hand = hand_info.hand.split(" ")
     hand.sort()
-    logging.info("2p hand started, hand is " + str(hand))
+    logging.debug("2p hand started, hand is " + str(hand))
     return {"status": "OK"}
 
 def process_events(event_text):
@@ -142,7 +142,7 @@ def process_events(event_text):
             hand.append(event_line.split(" ")[-1])
             hand.sort()
             print("Hand is now "+str(hand))
-            logging.info("Drew a "+event_line.split(" ")[-1]+", hand is now: "+str(hand))
+            logging.debug("Drew a "+event_line.split(" ")[-1]+", hand is now: "+str(hand))
         if ("discards" in event_line):  # add a card to discard pile
             discard.insert(0, event_line.split(" ")[-1])
         if ("takes" in event_line): # remove a card from discard pile
@@ -165,6 +165,13 @@ async def update_2p_game(update_info: UpdateInfo):
     process_events(update_info.event)
     print(update_info.event)
     return {"status": "OK"}
+
+def get_count(hand,card):
+    count = 0
+    for c in hand:
+        if c == card:
+            count += 1
+    return hand.count(card)
 
 @app.post("/draw/")
 async def draw(update_info: UpdateInfo):
@@ -196,37 +203,37 @@ async def lay_down(update_info: UpdateInfo):
     
     # If there are too many unmeldable cards, we need to discard
     if (of_a_kind_count[0] + (of_a_kind_count[1] * 2)) > 1:
-        logging.info("Need to discard unmeldable cards.")
+        logging.debug("Need to discard unmeldable cards.")
         
         # Discard the highest card if we have 1 of a kind
         if of_a_kind_count[0] > 0:
-            logging.info("Discarding a single card.")
+            logging.debug("Discarding a single card.")
             
             if hand[-1][0] != hand[-2][0]:
                 # Discard the highest single card
                 discard_string = " discard " + hand.pop()
-                logging.info(f"Discarded {discard_string}")
+                logging.debug(f"Discarded {discard_string}")
                 return {"play": discard_string}
             
             # If the last two cards are identical, discard the highest single card
             for i in range(len(hand)-2, -1, -1):
                 if i == 0 or hand[i][0] != hand[i-1][0] and hand[i][0] != hand[i+1][0]:
                     discard_string = " discard " + hand.pop(i)
-                    logging.info(f"Discarded {discard_string}")
+                    logging.debug(f"Discarded {discard_string}")
                     return {"play": discard_string}
 
         # If we have a 2 of a kind, discard one of them
         elif of_a_kind_count[1] >= 1:
-            logging.info("Discarding two of a kind.")
+            logging.debug("Discarding two of a kind.")
             
             for i in range(len(hand)-1, -1, -1):
                 if hand[i] != cannot_discard and get_count(hand, hand[i]) == 2:
                     discard_string = " discard " + hand.pop(i)
-                    logging.info(f"Discarded {discard_string}")
+                    logging.debug(f"Discarded {discard_string}")
                     return {"play": discard_string}
 
             discard_string = " discard " + hand.pop()  # Fallback discard
-            logging.info(f"Discarded {discard_string}")
+            logging.debug(f"Discarded {discard_string}")
             return {"play": discard_string}
     
     # We should be able to meld
@@ -249,7 +256,7 @@ async def lay_down(update_info: UpdateInfo):
         discard_string = " discard " + hand.pop()
     
     play_string = meld_string.strip() + discard_string
-    logging.info(f"Playing: {play_string}")
+    logging.debug(f"Playing: {play_string}")
     
     # Return the play action
     return {"play": play_string}
@@ -259,7 +266,7 @@ async def lay_down(update_info: UpdateInfo):
 async def shutdown_API():
     ''' Game Server calls this endpoint to shut down the player's client after testing is completed.  Only used if DEBUG is True. '''
     os.kill(os.getpid(), signal.SIGTERM)
-    logging.info("Player client shutting down...")
+    logging.debug("Player client shutting down...")
     return fastapi.Response(status_code=200, content='Server shutting down...')
 
 ''' Main code here - registers the player with the server via API call, and then launches the API to receive game information '''
@@ -270,7 +277,7 @@ if __name__ == "__main__":
 
         # TODO - Change logging.basicConfig if you want
         logging.basicConfig(filename="RummyPlayer.log", format='%(asctime)s - %(levelname)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S',level=logging.INFO)
+                    datefmt='%Y-%m-%d %H:%M:%S',level=logging.DEBUG)
     else:
         url = "http://127.0.0.1:16200/register"
         # TODO - Change logging.basicConfig if you want
